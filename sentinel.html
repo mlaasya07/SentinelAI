@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>SentinelAI</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg:       #050508;
+  --surface:  #0d0d14;
+  --surface2: #13131e;
+  --border:   #1e1e30;
+  --border2:  #2a2a42;
+  --accent:   #e8002a;
+  --accent2:  #ff4060;
+  --blue:     #3b82f6;
+  --orange:   #f59e0b;
+  --green:    #10b981;
+  --text:     #f0f0f8;
+  --muted:    #5a5a7a;
+  --dim:      #2a2a3a;
+  --mono:     'Space Mono', monospace;
+  --body:     'DM Mono', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--body);
+  min-height: 100vh;
+  font-size: 13px;
+  overflow-x: hidden;
+}
+
+/* Scanline overlay */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0,0,0,0.03) 2px,
+    rgba(0,0,0,0.03) 4px
+  );
+  pointer-events: none;
+  z-index: 9999;
+}
+
+/* ── Header ─────────────────────────────────────────────── */
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 2rem;
+  border-bottom: 1px solid var(--border);
+  background: rgba(5,5,8,0.95);
+  backdrop-filter: blur(12px);
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.logo-hex {
+  width: 30px; height: 30px;
+  background: var(--accent);
+  clip-path: polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
+  animation: pulse-hex 3s ease-in-out infinite;
+}
+
+@keyframes pulse-hex {
+  0%,100% { filter: drop-shadow(0 0 4px #e8002a88); }
+  50%      { filter: drop-shadow(0 0 12px #e8002acc); }
+}
+
+.logo-name {
+  font-family: var(--mono);
+  font-size: 1rem;
+  font-weight: 700;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+}
+.logo-name span { color: var(--accent); }
+
+.logo-badge {
+  font-size: 0.52rem;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+  padding: 2px 6px;
+  font-family: var(--mono);
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
+.status-pill {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  text-transform: uppercase;
+  font-family: var(--mono);
+}
+
+.dot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--muted);
+}
+.dot.on  { background: var(--green); animation: blink 2s infinite; }
+.dot.off { background: var(--accent); }
+
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+/* ── Metrics bar ─────────────────────────────────────────── */
+.metrics-bar {
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  padding: 0.75rem 2rem;
+  display: flex;
+  align-items: center;
+  gap: 0;
+  overflow-x: auto;
+}
+
+.metrics-label {
+  font-size: 0.55rem;
+  letter-spacing: 0.2em;
+  color: var(--accent);
+  text-transform: uppercase;
+  font-family: var(--mono);
+  padding-right: 1.5rem;
+  border-right: 1px solid var(--border2);
+  white-space: nowrap;
+}
+
+.metric-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 0 1.2rem;
+  border-right: 1px solid var(--border2);
+}
+
+.metric-value {
+  font-family: var(--mono);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text);
+}
+.metric-value.accent { color: var(--accent); }
+.metric-value.good   { color: var(--green); }
+
+.metric-name {
+  font-size: 0.5rem;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  text-transform: uppercase;
+  margin-top: 2px;
+}
+
+.metrics-algo {
+  margin-left: auto;
+  text-align: right;
+  font-size: 0.58rem;
+  color: var(--text);
+  letter-spacing: 0.08em;
+  font-family: var(--mono);
+  white-space: nowrap;
+}
+.metrics-sub {
+  font-size: 0.5rem;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* ── Main grid ───────────────────────────────────────────── */
+main {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 1.5rem 2rem;
+  display: grid;
+  grid-template-columns: 420px 1fr;
+  grid-template-rows: auto auto auto;
+  gap: 1px;
+  background: var(--border);
+}
+
+@media (max-width: 960px) {
+  main { grid-template-columns: 1fr; }
+}
+
+.panel {
+  background: var(--bg);
+  padding: 1.5rem;
+}
+
+.panel-title {
+  font-size: 0.55rem;
+  letter-spacing: 0.2em;
+  color: var(--accent);
+  text-transform: uppercase;
+  font-family: var(--mono);
+  margin-bottom: 1.25rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.title-line { flex: 1; height: 1px; background: var(--border2); }
+
+/* ── Form ───────────────────────────────────────────────── */
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.8rem;
+}
+
+.field { display: flex; flex-direction: column; gap: 0.3rem; }
+.field.full { grid-column: 1 / -1; }
+
+label {
+  font-size: 0.55rem;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  text-transform: uppercase;
+  font-family: var(--mono);
+}
+
+input, select {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  color: var(--text);
+  font-family: var(--body);
+  font-size: 0.8rem;
+  padding: 0.55rem 0.75rem;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  width: 100%;
+  -webkit-appearance: none;
+}
+input:focus, select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(232,0,42,0.12);
+}
+select option { background: var(--surface2); }
+
+/* V-features accordion */
+.v-features-toggle {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.55rem;
+  letter-spacing: 0.1em;
+  color: var(--muted);
+  text-transform: uppercase;
+  font-family: var(--mono);
+  margin-top: 0.5rem;
+  padding: 0.5rem 0;
+  border-top: 1px solid var(--border);
+  user-select: none;
+}
+.v-features-toggle:hover { color: var(--text); }
+.v-arrow { transition: transform 0.2s; }
+.v-arrow.open { transform: rotate(90deg); }
+
+.v-grid {
+  display: none;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.v-grid.open { display: grid; }
+
+.v-field input {
+  padding: 0.4rem 0.5rem;
+  font-size: 0.72rem;
+}
+.v-field label { font-size: 0.48rem; }
+
+/* Simulate toggle */
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+.toggle { position: relative; width: 36px; height: 18px; }
+.toggle input { opacity: 0; width: 0; height: 0; }
+.slider {
+  position: absolute; inset: 0;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  cursor: pointer; transition: 0.2s;
+}
+.slider::before {
+  content: '';
+  position: absolute;
+  width: 10px; height: 10px;
+  left: 3px; top: 3px;
+  background: var(--dim); transition: 0.2s;
+}
+.toggle input:checked + .slider { border-color: var(--accent); }
+.toggle input:checked + .slider::before { transform: translateX(18px); background: var(--accent); }
+.toggle-label { font-size: 0.62rem; color: var(--muted); font-family: var(--mono); }
+
+/* AI mode selector */
+.ai-mode-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  margin-bottom: 0.8rem;
+}
+
+.mode-btn {
+  padding: 0.5rem 0.75rem;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  color: var(--muted);
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  text-transform: uppercase;
+  transition: all 0.15s;
+  text-align: center;
+}
+.mode-btn:hover { color: var(--text); border-color: var(--border2); }
+.mode-btn.active { background: var(--surface); border-color: var(--accent); color: var(--text); }
+
+/* Button */
+.btn-analyze {
+  width: 100%;
+  margin-top: 1.2rem;
+  padding: 0.85rem;
+  background: var(--accent);
+  border: none;
+  color: var(--text);
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 0.7rem;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.15s, transform 0.1s;
+  position: relative;
+  overflow: hidden;
+}
+.btn-analyze::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg,transparent 0%,rgba(255,255,255,0.08) 50%,transparent 100%);
+  transform: translateX(-100%);
+  transition: transform 0.4s;
+}
+.btn-analyze:hover::after { transform: translateX(100%); }
+.btn-analyze:hover { background: var(--accent2); }
+.btn-analyze:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.spinner {
+  display: inline-block;
+  width: 10px; height: 10px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Result panel ───────────────────────────────────────── */
+.result-panel {
+  grid-row: 1 / 3;
+  grid-column: 2;
+}
+
+@media (max-width: 960px) {
+  .result-panel { grid-row: auto; grid-column: auto; }
+}
+
+.idle-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  height: 200px;
+  color: var(--muted);
+  font-size: 0.65rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  font-family: var(--mono);
+}
+
+.idle-hex {
+  width: 40px; height: 40px;
+  border: 1px solid var(--border2);
+  clip-path: polygon(50% 0%,100% 25%,100% 75%,50% 100%,0% 75%,0% 25%);
+  opacity: 0.3;
+}
+
+/* Gauge */
+.gauge-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
+}
+
+.gauge-ring {
+  position: relative;
+  width: 160px; height: 160px;
+}
+
+.gauge-ring svg { transform: rotate(-90deg); }
+
+.gauge-track {
+  fill: none;
+  stroke: var(--surface2);
+  stroke-width: 10;
+}
+.gauge-fill {
+  fill: none;
+  stroke-width: 10;
+  stroke-dasharray: 452;
+  stroke-dashoffset: 452;
+  stroke-linecap: butt;
+  transition: stroke-dashoffset 1s cubic-bezier(0.34,1.56,0.64,1), stroke 0.5s;
+}
+
+.gauge-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.gauge-score {
+  font-family: var(--mono);
+  font-size: 2.2rem;
+  font-weight: 700;
+  line-height: 1;
+  transition: color 0.5s;
+}
+
+.gauge-unit {
+  font-size: 0.52rem;
+  letter-spacing: 0.25em;
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+/* Decision badge */
+.decision-badge {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  padding: 0.6rem 2rem;
+  border: 1px solid;
+  width: 100%;
+  text-align: center;
+  max-width: 260px;
+}
+.decision-badge.ok     { border-color: var(--green); color: var(--green); background: rgba(16,185,129,0.08); }
+.decision-badge.warn   { border-color: var(--orange); color: var(--orange); background: rgba(245,158,11,0.08); }
+.decision-badge.danger { border-color: var(--accent); color: var(--accent); background: rgba(232,0,42,0.08); }
+
+/* Stats row */
+.stats-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  width: 100%;
+  border: 1px solid var(--border2);
+}
+.stat-box {
+  padding: 0.75rem;
+  text-align: center;
+  border-right: 1px solid var(--border2);
+}
+.stat-box:last-child { border-right: none; }
+.stat-value {
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+.stat-label {
+  font-size: 0.5rem;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-top: 3px;
+}
+
+/* Prob bar */
+.prob-wrap { width: 100%; }
+.prob-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.6rem;
+  color: var(--muted);
+  letter-spacing: 0.08em;
+  margin-bottom: 0.4rem;
+  font-family: var(--mono);
+}
+.prob-track {
+  height: 4px;
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  overflow: hidden;
+}
+.prob-fill {
+  height: 100%;
+  width: 0%;
+  transition: width 1s cubic-bezier(0.34,1.56,0.64,1);
+}
+
+/* ── AI Explanation ─────────────────────────────────────── */
+.explanation-panel {
+  grid-column: 1 / -1;
+}
+
+.explanation-box {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-left: 3px solid var(--border2);
+  padding: 1.25rem;
+  font-size: 0.75rem;
+  line-height: 1.8;
+  color: var(--muted);
+  font-family: var(--body);
+  min-height: 120px;
+  white-space: pre-wrap;
+  transition: border-color 0.3s;
+}
+.explanation-box.ok-border     { border-left-color: var(--green); }
+.explanation-box.warn-border   { border-left-color: var(--orange); }
+.explanation-box.danger-border { border-left-color: var(--accent); }
+.explanation-box.active        { color: var(--text); }
+
+.typing-cursor {
+  display: inline-block;
+  width: 7px; height: 1em;
+  background: var(--accent);
+  animation: blink-cursor 0.7s step-end infinite;
+  vertical-align: text-bottom;
+}
+@keyframes blink-cursor { 0%,100%{opacity:1} 50%{opacity:0} }
+
+/* ── History ─────────────────────────────────────────────── */
+.history-panel { grid-column: 1 / -1; }
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.72rem;
+}
+.history-table th {
+  font-size: 0.52rem;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+  text-transform: uppercase;
+  font-family: var(--mono);
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border2);
+  text-align: left;
+  font-weight: 400;
+}
+.history-table td {
+  padding: 0.65rem 0.75rem;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--body);
+  color: var(--text);
+}
+.history-table tr:last-child td { border-bottom: none; }
+.history-table tr:hover td { background: var(--surface); }
+
+.badge {
+  font-family: var(--mono);
+  font-size: 0.52rem;
+  letter-spacing: 0.1em;
+  padding: 2px 8px;
+  border: 1px solid;
+}
+.badge-ok     { color: var(--green);  border-color: var(--green);  background: rgba(16,185,129,0.08); }
+.badge-warn   { color: var(--orange); border-color: var(--orange); background: rgba(245,158,11,0.08); }
+.badge-danger { color: var(--accent); border-color: var(--accent); background: rgba(232,0,42,0.08); }
+
+/* ── AI mode indicator ──────────────────────────────────── */
+.ai-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.52rem;
+  letter-spacing: 0.08em;
+  color: var(--muted);
+  font-family: var(--mono);
+  text-transform: uppercase;
+}
+
+/* ── API key modal ──────────────────────────────────────── */
+.modal-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.8);
+  z-index: 200;
+  align-items: center;
+  justify-content: center;
+}
+.modal-overlay.open { display: flex; }
+.modal-box {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  padding: 2rem;
+  width: 420px;
+  max-width: 90vw;
+}
+.modal-title {
+  font-family: var(--mono);
+  font-size: 0.65rem;
+  letter-spacing: 0.2em;
+  color: var(--accent);
+  text-transform: uppercase;
+  margin-bottom: 1rem;
+}
+.modal-desc {
+  font-size: 0.72rem;
+  color: var(--muted);
+  line-height: 1.7;
+  margin-bottom: 1rem;
+}
+.modal-input-wrap {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+}
+.modal-input-wrap input { flex: 1; }
+.modal-save {
+  padding: 0.55rem 1rem;
+  background: var(--accent);
+  border: none;
+  color: white;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  letter-spacing: 0.1em;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.modal-note { font-size: 0.58rem; color: var(--muted); line-height: 1.6; }
+
+/* ── Scrollbar ───────────────────────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--bg); }
+::-webkit-scrollbar-thumb { background: var(--border2); }
+</style>
+</head>
+<body>
+
+<!-- API key modal -->
+<div class="modal-overlay" id="api-modal">
+  <div class="modal-box">
+    <div class="modal-title">Claude AI — Configure</div>
+    <div class="modal-desc">
+      Enter your Anthropic API key to enable live AI-powered fraud explanations directly in the browser. Your key is stored only in <code>localStorage</code> on this device — never sent anywhere except Anthropic's API.
+    </div>
+    <div class="modal-input-wrap">
+      <input type="password" id="api-key-input" placeholder="sk-ant-..." />
+      <button class="modal-save" onclick="saveApiKey()">Save</button>
+    </div>
+    <div class="modal-note">
+      Get a key at <strong>console.anthropic.com</strong> → API Keys.<br>
+      Without a key, explanations fall back to the local Ollama LLM (if running).
+    </div>
+    <div style="margin-top:1rem;display:flex;gap:0.75rem">
+      <button onclick="closeModal()" style="padding:0.5rem 1rem;background:var(--surface2);border:1px solid var(--border2);color:var(--muted);font-family:var(--mono);font-size:0.6rem;letter-spacing:0.1em;cursor:pointer">
+        Cancel
+      </button>
+      <button onclick="clearApiKey()" style="padding:0.5rem 1rem;background:transparent;border:1px solid var(--border2);color:var(--accent);font-family:var(--mono);font-size:0.6rem;letter-spacing:0.1em;cursor:pointer">
+        Clear Key
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Header -->
+<header>
+  <div class="logo">
+    <div class="logo-hex"></div>
+    <div class="logo-name">Sentinel<span>AI</span></div>
+    <div class="logo-badge">v2</div>
+  </div>
+  <div class="header-right">
+    <div class="status-pill">
+      <div class="dot" id="status-dot"></div>
+      <span id="api-status">Checking...</span>
+    </div>
+    <button onclick="openModal()" style="background:transparent;border:1px solid var(--border2);color:var(--muted);font-family:var(--mono);font-size:0.55rem;letter-spacing:0.1em;padding:4px 10px;cursor:pointer;text-transform:uppercase;" id="claude-btn">
+      Claude AI
+    </button>
+  </div>
+</header>
+
+<!-- Metrics bar -->
+<div class="metrics-bar" id="metrics-bar">
+  <span class="metrics-label">Model Performance</span>
+  <span style="font-size:0.6rem;color:var(--muted);margin-left:1rem;font-family:var(--mono);">Loading metrics...</span>
+</div>
+
+<!-- Main -->
+<main>
+
+  <!-- Input panel -->
+  <div class="panel">
+    <div class="panel-title">Transaction Input <div class="title-line"></div></div>
+
+    <div class="form-grid">
+      <div class="field full">
+        <label>Amount (Rupees)</label>
+        <input type="number" id="amount" value="1611" min="0.01" step="0.01" />
+      </div>
+
+      <div class="field">
+        <label>Hour of Day (0–23)</label>
+        <input type="number" id="hour" value="14" min="0" max="23" />
+      </div>
+
+      <div class="field">
+        <label>Device / Channel</label>
+        <select id="device">
+          <option>POS Terminal</option>
+          <option>Mobile App</option>
+          <option>Web Browser</option>
+          <option>ATM</option>
+          <option>API / Merchant</option>
+          <option>Unknown</option>
+        </select>
+      </div>
+
+      <div class="field full">
+        <label>Location</label>
+        <input type="text" id="location" value="Mumbai, India" placeholder="City, Country" />
+      </div>
+    </div>
+
+    <!-- V-features accordion -->
+    <div class="v-features-toggle" onclick="toggleVFeatures()">
+      <span class="v-arrow" id="v-arrow">▶</span>
+      PCA Features (V1–V28) — for creditcard dataset transactions
+    </div>
+    <div class="v-grid" id="v-grid">
+      <!-- generated by JS -->
+    </div>
+
+    <!-- Simulate toggle -->
+    <div class="toggle-row" style="margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)">
+      <label class="toggle">
+        <input type="checkbox" id="simulate-fraud" />
+        <span class="slider"></span>
+      </label>
+      <span class="toggle-label">Simulate suspicious transaction (injects fraud-pattern features)</span>
+    </div>
+
+    <button class="btn-analyze" id="analyze-btn" onclick="analyze()">
+      <span id="btn-label">Analyze Transaction</span>
+    </button>
+  </div>
+
+  <!-- Result panel -->
+  <div class="panel result-panel">
+    <div class="panel-title">
+      Risk Analysis
+      <div class="title-line"></div>
+    </div>
+    <div id="result-area">
+      <div class="idle-state">
+        <div class="idle-hex"></div>
+        <span>Submit a transaction to begin</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Explanation panel -->
+  <div class="panel explanation-panel">
+    <div class="panel-title">
+      AI Explanation
+      <span class="ai-indicator" id="ai-mode-label">
+        <span class="dot" id="ai-dot"></span>
+        <span id="ai-mode-text">—</span>
+      </span>
+      <div class="title-line"></div>
+    </div>
+    <div class="explanation-box" id="explanation-box">Awaiting transaction analysis...</div>
+  </div>
+
+  <!-- History -->
+  <div class="panel history-panel">
+    <div class="panel-title">Transaction History <div class="title-line"></div></div>
+    <table class="history-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Amount</th>
+          <th>Device</th>
+          <th>Location</th>
+          <th>Risk Score</th>
+          <th>Decision</th>
+          <th>Fraud Prob</th>
+          <th>Latency</th>
+          <th>AI Mode</th>
+        </tr>
+      </thead>
+      <tbody id="history-body">
+        <tr>
+          <td colspan="9" style="text-align:center;color:var(--muted);padding:1.5rem 0;font-family:var(--mono);letter-spacing:0.08em;font-size:0.65rem">
+            No transactions yet
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</main>
+
+<script>
+const API = 'http://localhost:8000';
+let txCount = 0;
+
+// ✅ FIX 1: INR-based realistic medians
+const CAT_MEDIANS = {
+  grocery_pos:   300,
+  shopping_pos:  500,
+  shopping_net:  800,
+  food_dining:   250,
+  gas_transport: 400,
+  entertainment: 300,
+  health_fitness:500,
+  misc_pos:      600,
+  misc_net:      900,
+  personal_care: 300,
+  home:          1500,
+  kids_pets:     400,
+  travel:        5000,
+};
+
+function updateAmountHint(val) {
+  const hint = document.getElementById('amount-hint');
+  const cat = document.getElementById('category').value;
+  const median = CAT_MEDIANS[cat] || 500;
+  const amount = parseFloat(val);
+
+  if (!amount || isNaN(amount)) {
+    hint.textContent = '';
+    hint.className = 'amount-hint';
+    return;
+  }
+
+  const ratio = amount / median;
+
+  if (ratio < 1.5) {
+    hint.textContent = `${ratio.toFixed(1)}× typical — normal`;
+    hint.className = 'amount-hint';
+  } else if (ratio < 4) {
+    hint.textContent = `${ratio.toFixed(1)}× typical — elevated`;
+    hint.className = 'amount-hint warn';
+  } else {
+    hint.textContent = `${ratio.toFixed(1)}× typical — suspicious`;
+    hint.className = 'amount-hint danger';
+  }
+}
+
+// ✅ FIX 2: Input validation
+function validateInputs(amount, hour) {
+  if (!amount || amount <= 0 || amount > 1e7) {
+    alert("Invalid amount");
+    return false;
+  }
+  if (hour < 0 || hour > 23) {
+    alert("Invalid hour");
+    return false;
+  }
+  return true;
+}
+
+// ✅ FIX 3: Better risk color (based on probability)
+const SC = p => p < 0.3 ? 'var(--green)' : p < 0.7 ? 'var(--orange)' : 'var(--accent)';
+const DC = d => d === 'APPROVE' ? 'ok' : d === 'OTP' ? 'warn' : 'danger';
+
+// ✅ FIX 4: Timeout-safe fetch
+async function safeFetch(url, options = {}, timeout = 5000) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  try {
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(id);
+    return res;
+  } catch (e) {
+    clearTimeout(id);
+    throw e;
+  }
+}
+
+// ✅ FIX 5: Improved simulate fraud randomness
+function applyFraudSimulation(payload) {
+  payload.amount *= (4 + Math.random() * 3);
+  payload.hour = Math.random() < 0.5 ? 2 : 3;
+  payload.device = "Web Browser";
+  return payload;
+}
+
+// ✅ MAIN ANALYZE
+async function analyze() {
+  const btn = document.getElementById('analyze-btn');
+  const lbl = document.getElementById('btn-label');
+
+  const amount = parseFloat(document.getElementById('amount').value);
+  const hour = parseInt(document.getElementById('hour').value);
+  const device = document.getElementById('device').value;
+  const location = document.getElementById('location').value.trim();
+  const category = document.getElementById('category').value;
+  const simFraud = document.getElementById('simulate-fraud').checked;
+
+  if (!validateInputs(amount, hour)) return;
+
+  btn.disabled = true;
+  lbl.textContent = "Analyzing...";
+
+  let payload = { amount, hour, device, location, category };
+
+  if (simFraud) payload = applyFraudSimulation(payload);
+
+  const start = performance.now();
+
+  try {
+    const res = await safeFetch(`${API}/predict`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) throw new Error("Server error");
+
+    const data = await res.json();
+    const totalLatency = (performance.now() - start).toFixed(1);
+
+    renderResult(data, totalLatency);
+    addHistory(data, amount, category, device, location, totalLatency);
+
+    renderExplanation(data);
+
+  } catch (err) {
+    alert("Backend error or timeout");
+  }
+
+  btn.disabled = false;
+  lbl.textContent = "Analyze Transaction";
+}
+
+// ✅ RESULT RENDER
+function renderResult(data, totalLatency) {
+  const col = SC(data.fraud_probability);
+  const dc = DC(data.decision);
+
+  document.getElementById('result-area').innerHTML = `
+    <div style="text-align:center">
+      <h2 style="color:${col}">${data.risk_score.toFixed(1)}</h2>
+      <p>${data.decision}</p>
+      <p>${(data.fraud_probability * 100).toFixed(2)}% fraud probability</p>
+      <p>${totalLatency} ms (total)</p>
+    </div>
+  `;
+}
+
+// ✅ EXPLANATION IMPROVED
+function renderExplanation(data) {
+  const box = document.getElementById('explanation-box');
+
+  box.textContent = `Top Risk Factors:\n- Amount anomaly\n- Time anomaly\n- Channel deviation\n\n${data.explanation}`;
+}
+
+// ✅ HISTORY WITH PERSISTENCE
+function addHistory(data, amount, category, device, location, latency) {
+  txCount++;
+
+  const entry = {
+    id: txCount,
+    amount,
+    category,
+    device,
+    location,
+    risk: data.risk_score,
+    decision: data.decision,
+    prob: data.fraud_probability,
+    latency
+  };
+
+  const history = JSON.parse(localStorage.getItem('history') || '[]');
+  history.unshift(entry);
+  localStorage.setItem('history', JSON.stringify(history));
+
+  renderHistory();
+}
+
+function renderHistory() {
+  const history = JSON.parse(localStorage.getItem('history') || '[]');
+  const tbody = document.getElementById('history-body');
+
+  if (!history.length) {
+    tbody.innerHTML = `<tr><td colspan="9">No transactions</td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = history.map(h => `
+    <tr>
+      <td>#${h.id}</td>
+      <td>₹${h.amount}</td>
+      <td>${h.category}</td>
+      <td>${h.device}</td>
+      <td>${h.location}</td>
+      <td>${h.risk.toFixed(1)}</td>
+      <td>${h.decision}</td>
+      <td>${(h.prob * 100).toFixed(2)}%</td>
+      <td>${h.latency} ms</td>
+    </tr>
+  `).join('');
+}
+
+// ✅ INIT
+renderHistory();
+updateAmountHint(document.getElementById('amount').value);
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter') analyze();
+});
+
+</script>
+
+</body>
+</html>

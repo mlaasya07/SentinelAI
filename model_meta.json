@@ -1,0 +1,37 @@
+{
+  "trained_at": "2026-03-26T04:57:27.711656Z",
+  "algorithm": "XGBoost + LightGBM Stacked Ensemble",
+  "focus": "Debit card transaction amount anomaly detection",
+  "n_features": 12,
+  "features": [
+    "amount_log",
+    "amount_to_cat_median",
+    "amount_to_cat_p95",
+    "hour_sin",
+    "hour_cos",
+    "is_night",
+    "is_online",
+    "is_high_risk_cat",
+    "amt_gt_500",
+    "amt_gt_1000",
+    "amt_gt_5000",
+    "amount_raw"
+  ],
+  "threshold": 0.981845,
+  "datasets": [
+    "kartik2112/fraud-detection"
+  ],
+  "metrics": {
+    "pr_auc": 0.848074,
+    "roc_auc": 0.996926,
+    "precision": 0.858716,
+    "recall": 0.727461,
+    "f1": 0.787658,
+    "threshold": 0.981845,
+    "true_positives": 1404,
+    "false_positives": 231,
+    "false_negatives": 526,
+    "true_negatives": 368318
+  },
+  "note": "accuracy omitted \u2014 meaningless on 0.5% fraud imbalanced data"
+}
